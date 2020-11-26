@@ -1,31 +1,45 @@
 import 'package:flutter/material.dart';
-import 'package:testapp/services/database_manager.dart';
+import 'dart:async';
+import 'dart:convert';
+import 'package:flutter/foundation.dart';
+import 'package:http/http.dart' as http;
+import 'package:testapp/pages/listpost.dart';
+import 'package:testapp/services/post.dart';
 
-class Homepage extends StatefulWidget {
-  Homepage({Key key, this.title}) : super(key: key);
-  final String title;
-  @override
-  _HomepageState createState() => _HomepageState();
+Future<List<Post>> fetchPosts(http.Client client) async {
+  final response =
+      await client.get('https://jsonplaceholder.typicode.com/posts');
+
+  return compute(parsePosts, response.body);
 }
 
-class _HomepageState extends State<Homepage> {
-  
+List<Post> parsePosts(String responseBody) {
+  final parsed = json.decode(responseBody).cast<Map<String, dynamic>>();
+
+  return parsed.map<Post>((json) => Post.fromJson(json)).toList();
+}
+
+class HomePage extends StatelessWidget {
+  final String title;
+
+  HomePage({Key key, this.title}) : super(key: key);
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title:Text('test')),
-      body: Container(
-        child: FutureBuilder<String>( 
-        future: Database_Manager().getData(), 
-        builder: (context, snapshot){
-          if(snapshot.hasData){
-            
-            return Text(snapshot.data);
-          }
-          return CircularProgressIndicator();
-        })
+      appBar: AppBar(
+        title: Text(title),
+      ),
+      body: FutureBuilder<List<Post>>(
+        future: fetchPosts(http.Client()),
+        builder: (context, snapshot) {
+          if (snapshot.hasError) print(snapshot.error);
+
+          return snapshot.hasData
+              ? ListViewPosts(posts: snapshot.data)
+              : Center(child: CircularProgressIndicator());
+        },
       ),
     );
   }
-
 }
